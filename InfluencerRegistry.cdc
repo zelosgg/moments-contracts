@@ -11,7 +11,7 @@ pub contract InfluencerRegistry {
 
     // Emitted when a FT-receiving capability for an influencer has been updated
     // If address is nil, that means the capability has been removed.
-    pub event CapabilityUpdated(name: String, ftName: String, address: Address?)
+    pub event CapabilityUpdated(name: String, ftType: Type, address: Address?)
 
     // Emitted when an influencer's cut percentage has been updated
     // If the cutPercentage is nil, that means it has been removed.
@@ -20,7 +20,7 @@ pub contract InfluencerRegistry {
     // Emitted when the default cut percentage has been updated
     pub event DefaultCutPercentageUpdated(cutPercentage: UFix64?)
 
-    // capabilities is a mapping from influencer name, to fungible token name, to
+    // capabilities is a mapping from influencer name, to fungible token ID, to
     // the capability for a receiver for the fungible token
     pub var capabilities: {String: {String: Capability<&{FungibleToken.Receiver}>}}
 
@@ -32,9 +32,11 @@ pub contract InfluencerRegistry {
     pub var defaultCutPercentage: UFix64
 
     // Get the capability for depositing accounting tokens to the influencer
-    pub fun getCapability(name: String, ftName: String): Capability? {
+    pub fun getCapability(name: String, ftType: Type): Capability? {
+        let ftId = ftType.identifier
+
         if let caps = self.capabilities[name] {
-            return caps[ftName]
+            return caps[ftId]
         } else {
             return nil
         }
@@ -54,13 +56,14 @@ pub contract InfluencerRegistry {
     pub resource Admin {
 
         // Update the FT-receiving capability for an influencer
-        pub fun setCapability(name: String, ftName: String, capability: Capability<&{FungibleToken.Receiver}>?) {
+        pub fun setCapability(name: String, ftType: Type, capability: Capability<&{FungibleToken.Receiver}>?) {
+            let ftId = ftType.identifier
             if let cap = capability {
                 if let caps = InfluencerRegistry.capabilities[name] {
-                    caps[ftName] = cap
+                    caps[ftId] = cap
                     InfluencerRegistry.capabilities[name] = caps
                 } else {
-                    InfluencerRegistry.capabilities[name] = {ftName: cap}
+                    InfluencerRegistry.capabilities[name] = {ftId: cap}
                 }
                 // This is the only way to get the address behind a capability from Cadence right
                 // now.  It will panic if the capability is not pointing to anything, but in that
@@ -69,14 +72,14 @@ pub contract InfluencerRegistry {
                     .owner ?? panic("Capability owner is empty"))
                     .address
 
-                emit CapabilityUpdated(name: name, ftName: ftName, address: addr)
+                emit CapabilityUpdated(name: name, ftType: ftType, address: addr)
             } else {
                 if let caps = InfluencerRegistry.capabilities[name] {
-                    caps.remove(key: ftName)
+                    caps.remove(key: ftId)
                     InfluencerRegistry.capabilities[name] = caps
                 }
 
-                emit CapabilityUpdated(name: name, ftName: ftName, address: nil)
+                emit CapabilityUpdated(name: name, ftType: ftType, address: nil)
             }
         }
 

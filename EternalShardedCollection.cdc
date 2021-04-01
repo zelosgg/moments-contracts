@@ -1,51 +1,19 @@
 /*
-    Description: Central Collection for a large number of TopShot
-                 NFTs
-
-    authors: Joshua Hannan joshua.hannan@dapperlabs.com
-             Bastian Muller bastian@dapperlabs.com
-
-    This resource object looks and acts exactly like a TopShot MomentCollection
-    and (in a sense) shouldn’t have to exist! 
-
-    The problem is that Cadence currently has a limitation where 
-    storing more than ~100k objects in a single dictionary or array can fail.
-
-    Most MomentCollections are likely to be much, much smaller than this, 
-    and that limitation will be removed in a future iteration of Cadence, 
-    so most people will never need to worry about it.
-
-    However! The main TopShot administration account DOES need to worry about it
-    because it frequently needs to mint >10k Moments for sale, 
-    and could easily end up needing to hold more than 100k Moments at one time.
-    
-    Until Cadence gets an update, that leaves us in a bit of a pickle!
-
-    This contract bundles together a bunch of MomentCollection objects 
-    in a dictionary, and then distributes the individual Moments between them 
-    while implementing the same public interface 
-    as the default MomentCollection implementation. 
-
-    If we assume that Moment IDs are uniformly distributed, 
-    a ShardedCollection with 10 inner Collections should be able 
-    to store 10x as many Moments (or ~1M).
-
-    When Cadence is updated to allow larger dictionaries, 
-    then this contract can be retired.
-
+    Copied from the EternalShardedCollection contract except with
+    names changed.
 */
 
 import NonFungibleToken from 0xNFTADDRESS
-import TopShot from 0xTOPSHOTADDRESS
+import Eternal from 0xETERNALADDRESS
 
-pub contract TopShotShardedCollection {
+pub contract EternalShardedCollection {
 
-    // ShardedCollection stores a dictionary of TopShot Collections
+    // ShardedCollection stores a dictionary of Eternal Collections
     // A Moment is stored in the field that corresponds to its id % numBuckets
-    pub resource ShardedCollection: TopShot.MomentCollectionPublic, NonFungibleToken.Provider, NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic { 
+    pub resource ShardedCollection: Eternal.MomentCollectionPublic, NonFungibleToken.Provider, NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic { 
         
-        // Dictionary of topshot collections
-        pub var collections: @{UInt64: TopShot.Collection}
+        // Dictionary of Eternal collections
+        pub var collections: @{UInt64: Eternal.Collection}
 
         // The number of buckets to split Moments into
         // This makes storage more efficient and performant
@@ -59,7 +27,7 @@ pub contract TopShotShardedCollection {
             var i: UInt64 = 0
             while i < numBuckets {
 
-                self.collections[i] <-! TopShot.createEmptyCollection() as! @TopShot.Collection
+                self.collections[i] <-! Eternal.createEmptyCollection() as! @Eternal.Collection
 
                 i = i + UInt64(1)
             }
@@ -87,7 +55,7 @@ pub contract TopShotShardedCollection {
         // Returns: @NonFungibleToken.Collection a Collection containing the moments
         //          that were withdrawn
         pub fun batchWithdraw(ids: [UInt64]): @NonFungibleToken.Collection {
-            var batchCollection <- TopShot.createEmptyCollection()
+            var batchCollection <- Eternal.createEmptyCollection()
             
             // Iterate through the ids and withdraw them from the Collection
             for id in ids {
@@ -161,7 +129,7 @@ pub contract TopShotShardedCollection {
         // Parameters: id: The ID of the NFT to get the reference for
         //
         // Returns: A reference to the NFT
-        pub fun borrowMoment(id: UInt64): &TopShot.NFT? {
+        pub fun borrowMoment(id: UInt64): &Eternal.NFT? {
 
             // Get the bucket of the nft to be borrowed
             let bucket = id % self.numBuckets

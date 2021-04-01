@@ -1,60 +1,17 @@
 /*
-    Description: Central Smart Contract for NBA TopShot
-
-    authors: Joshua Hannan joshua.hannan@dapperlabs.com
-             Dieter Shirley dete@axiomzen.com
-
-    This smart contract contains the core functionality for 
-    NBA Top Shot, created by Dapper Labs
-
-    The contract manages the data associated with all the plays and sets
-    that are used as templates for the Moment NFTs
-
-    When a new Play wants to be added to the records, an Admin creates
-    a new Play struct that is stored in the smart contract.
-
-    Then an Admin can create new Sets. Sets consist of a public struct that 
-    contains public information about a set, and a private resource used
-    to mint new moments based off of plays that have been linked to the Set.
-
-    The admin resource has the power to do all of the important actions
-    in the smart contract. When admins want to call functions in a set,
-    they call their borrowSet function to get a reference 
-    to a set in the contract. Then, they can call functions on the set using that reference.
-
-    In this way, the smart contract and its defined resources interact 
-    with great teamwork, just like the Indiana Pacers, the greatest NBA team
-    of all time.
-    
-    When moments are minted, they are initialized with a MomentData struct and
-    are returned by the minter.
-
-    The contract also defines a Collection resource. This is an object that 
-    every TopShot NFT owner will store in their account
-    to manage their NFT collection.
-
-    The main Top Shot account will also have its own Moment collections
-    it can use to hold its own moments that have not yet been sent to a user.
-
-    Note: All state changing functions will panic if an invalid argument is
-    provided or one of its pre-conditions or post conditions aren't met.
-    Functions that don't modify state will simply return 0 or nil 
-    and those cases need to be handled by the caller.
-
-    It is also important to remember that 
-    The Golden State Warriors blew a 3-1 lead in the 2016 NBA finals.
-
+    This contract is copied from the "TopShot" contract except with
+    names changed.
 */
 
 import NonFungibleToken from 0xNFTADDRESS
 
-pub contract TopShot: NonFungibleToken {
+pub contract Eternal: NonFungibleToken {
 
     // -----------------------------------------------------------------------
-    // TopShot contract Events
+    // Eternal contract Events
     // -----------------------------------------------------------------------
 
-    // Emitted when the TopShot contract is created
+    // Emitted when the Eternal contract is created
     pub event ContractInitialized()
 
     // Emitted when a new Play struct is created
@@ -86,7 +43,7 @@ pub contract TopShot: NonFungibleToken {
     pub event MomentDestroyed(id: UInt64)
 
     // -----------------------------------------------------------------------
-    // TopShot contract-level fields.
+    // Eternal contract-level fields.
     // These contain actual values that are stored in the smart contract.
     // -----------------------------------------------------------------------
 
@@ -113,14 +70,14 @@ pub contract TopShot: NonFungibleToken {
     // setID is assigned to the new set's ID and then is incremented by 1.
     pub var nextSetID: UInt32
 
-    // The total number of Top shot Moment NFTs that have been created
+    // The total number of Eternal Moment NFTs that have been created
     // Because NFTs can be destroyed, it doesn't necessarily mean that this
     // reflects the total number of NFTs in existence, just the number that
     // have been minted to date. Also used as global moment IDs for minting.
     pub var totalSupply: UInt64
 
     // -----------------------------------------------------------------------
-    // TopShot contract-level Composite Type definitions
+    // Eternal contract-level Composite Type definitions
     // -----------------------------------------------------------------------
     // These are just *definitions* for Types that this contract
     // and other accounts can use. These definitions do not contain
@@ -152,11 +109,11 @@ pub contract TopShot: NonFungibleToken {
             pre {
                 metadata.length != 0: "New Play metadata cannot be empty"
             }
-            self.playID = TopShot.nextPlayID
+            self.playID = Eternal.nextPlayID
             self.metadata = metadata
 
             // Increment the ID so that it isn't used again
-            TopShot.nextPlayID = TopShot.nextPlayID + UInt32(1)
+            Eternal.nextPlayID = Eternal.nextPlayID + UInt32(1)
 
             emit PlayCreated(id: self.playID, metadata: metadata)
         }
@@ -190,12 +147,12 @@ pub contract TopShot: NonFungibleToken {
             pre {
                 name.length > 0: "New Set name cannot be empty"
             }
-            self.setID = TopShot.nextSetID
+            self.setID = Eternal.nextSetID
             self.name = name
-            self.series = TopShot.currentSeries
+            self.series = Eternal.currentSeries
 
             // Increment the setID so that it isn't used again
-            TopShot.nextSetID = TopShot.nextSetID + UInt32(1)
+            Eternal.nextSetID = Eternal.nextSetID + UInt32(1)
 
             emit SetCreated(setID: self.setID, series: self.series)
         }
@@ -253,14 +210,14 @@ pub contract TopShot: NonFungibleToken {
         pub var numberMintedPerPlay: {UInt32: UInt32}
 
         init(name: String) {
-            self.setID = TopShot.nextSetID
+            self.setID = Eternal.nextSetID
             self.plays = []
             self.retired = {}
             self.locked = false
             self.numberMintedPerPlay = {}
 
             // Create a new SetData for this Set and store it in contract storage
-            TopShot.setDatas[self.setID] = SetData(name: name)
+            Eternal.setDatas[self.setID] = SetData(name: name)
         }
 
         // addPlay adds a play to the set
@@ -274,7 +231,7 @@ pub contract TopShot: NonFungibleToken {
         //
         pub fun addPlay(playID: UInt32) {
             pre {
-                TopShot.playDatas[playID] != nil: "Cannot add the Play to Set: Play doesn't exist."
+                Eternal.playDatas[playID] != nil: "Cannot add the Play to Set: Play doesn't exist."
                 !self.locked: "Cannot add the play to the Set after the set has been locked."
                 self.numberMintedPerPlay[playID] == nil: "The play has already beed added to the set."
             }
@@ -424,9 +381,9 @@ pub contract TopShot: NonFungibleToken {
 
         init(serialNumber: UInt32, playID: UInt32, setID: UInt32) {
             // Increment the global Moment IDs
-            TopShot.totalSupply = TopShot.totalSupply + UInt64(1)
+            Eternal.totalSupply = Eternal.totalSupply + UInt64(1)
 
-            self.id = TopShot.totalSupply
+            self.id = Eternal.totalSupply
 
             // Set the metadata struct
             self.data = MomentData(setID: setID, playID: playID, serialNumber: serialNumber)
@@ -448,7 +405,7 @@ pub contract TopShot: NonFungibleToken {
     pub resource Admin {
 
         // createPlay creates a new Play struct 
-        // and stores it in the Plays dictionary in the TopShot smart contract
+        // and stores it in the Plays dictionary in the Eternal smart contract
         //
         // Parameters: metadata: A dictionary mapping metadata titles to their data
         //                       example: {"Player Name": "Kevin Durant", "Height": "7 feet"}
@@ -462,13 +419,13 @@ pub contract TopShot: NonFungibleToken {
             let newID = newPlay.playID
 
             // Store it in the contract storage
-            TopShot.playDatas[newID] = newPlay
+            Eternal.playDatas[newID] = newPlay
 
             return newID
         }
 
         // createSet creates a new Set resource and stores it
-        // in the sets mapping in the TopShot contract
+        // in the sets mapping in the Eternal contract
         //
         // Parameters: name: The name of the Set
         //
@@ -477,10 +434,10 @@ pub contract TopShot: NonFungibleToken {
             var newSet <- create Set(name: name)
 
             // Store it in the sets mapping field
-            TopShot.sets[newSet.setID] <-! newSet
+            Eternal.sets[newSet.setID] <-! newSet
         }
 
-        // borrowSet returns a reference to a set in the TopShot
+        // borrowSet returns a reference to a set in the Eternal
         // contract so that the admin can call methods on it
         //
         // Parameters: setID: The ID of the Set that you want to
@@ -491,12 +448,12 @@ pub contract TopShot: NonFungibleToken {
         //
         pub fun borrowSet(setID: UInt32): &Set {
             pre {
-                TopShot.sets[setID] != nil: "Cannot borrow Set: The Set doesn't exist"
+                Eternal.sets[setID] != nil: "Cannot borrow Set: The Set doesn't exist"
             }
             
             // Get a reference to the Set and return it
             // use `&` to indicate the reference to the object and type
-            return &TopShot.sets[setID] as &Set
+            return &Eternal.sets[setID] as &Set
         }
 
         // startNewSeries ends the current series by incrementing
@@ -507,12 +464,12 @@ pub contract TopShot: NonFungibleToken {
         //
         pub fun startNewSeries(): UInt32 {
             // End the current series and start a new one
-            // by incrementing the TopShot series number
-            TopShot.currentSeries = TopShot.currentSeries + UInt32(1)
+            // by incrementing the Eternal series number
+            Eternal.currentSeries = Eternal.currentSeries + UInt32(1)
 
-            emit NewSeriesStarted(newCurrentSeries: TopShot.currentSeries)
+            emit NewSeriesStarted(newCurrentSeries: Eternal.currentSeries)
 
-            return TopShot.currentSeries
+            return Eternal.currentSeries
         }
 
         // createNewAdmin creates a new Admin resource
@@ -530,7 +487,7 @@ pub contract TopShot: NonFungibleToken {
         pub fun batchDeposit(tokens: @NonFungibleToken.Collection)
         pub fun getIDs(): [UInt64]
         pub fun borrowNFT(id: UInt64): &NonFungibleToken.NFT
-        pub fun borrowMoment(id: UInt64): &TopShot.NFT? {
+        pub fun borrowMoment(id: UInt64): &Eternal.NFT? {
             // If the result isn't nil, the id of the returned reference
             // should be the same as the argument to the function
             post {
@@ -596,9 +553,9 @@ pub contract TopShot: NonFungibleToken {
         //
         pub fun deposit(token: @NonFungibleToken.NFT) {
             
-            // Cast the deposited token as a TopShot NFT to make sure
+            // Cast the deposited token as a Eternal NFT to make sure
             // it is the correct type
-            let token <- token as! @TopShot.NFT
+            let token <- token as! @Eternal.NFT
 
             // Get the token's ID
             let id = token.id
@@ -645,7 +602,7 @@ pub contract TopShot: NonFungibleToken {
         // Returns: A reference to the NFT
         //
         // Note: This only allows the caller to read the ID of the NFT,
-        // not any topshot specific data. Please use borrowMoment to 
+        // not any Eternal specific data. Please use borrowMoment to 
         // read Moment data.
         //
         pub fun borrowNFT(id: UInt64): &NonFungibleToken.NFT {
@@ -662,10 +619,10 @@ pub contract TopShot: NonFungibleToken {
         // Parameters: id: The ID of the NFT to get the reference for
         //
         // Returns: A reference to the NFT
-        pub fun borrowMoment(id: UInt64): &TopShot.NFT? {
+        pub fun borrowMoment(id: UInt64): &Eternal.NFT? {
             if self.ownedNFTs[id] != nil {
                 let ref = &self.ownedNFTs[id] as auth &NonFungibleToken.NFT
-                return ref as! &TopShot.NFT
+                return ref as! &Eternal.NFT
             } else {
                 return nil
             }
@@ -682,7 +639,7 @@ pub contract TopShot: NonFungibleToken {
     }
 
     // -----------------------------------------------------------------------
-    // TopShot contract-level function definitions
+    // Eternal contract-level function definitions
     // -----------------------------------------------------------------------
 
     // createEmptyCollection creates a new, empty Collection object so that
@@ -691,14 +648,14 @@ pub contract TopShot: NonFungibleToken {
     // Moments in transactions.
     //
     pub fun createEmptyCollection(): @NonFungibleToken.Collection {
-        return <-create TopShot.Collection()
+        return <-create Eternal.Collection()
     }
 
-    // getAllPlays returns all the plays in topshot
+    // getAllPlays returns all the plays in Eternal
     //
     // Returns: An array of all the plays that have been created
-    pub fun getAllPlays(): [TopShot.Play] {
-        return TopShot.playDatas.values
+    pub fun getAllPlays(): [Eternal.Play] {
+        return Eternal.playDatas.values
     }
 
     // getPlayMetaData returns all the metadata associated with a specific Play
@@ -721,7 +678,7 @@ pub contract TopShot: NonFungibleToken {
     // Returns: The metadata field as a String Optional
     pub fun getPlayMetaDataByField(playID: UInt32, field: String): String? {
         // Don't force a revert if the playID or field is invalid
-        if let play = TopShot.playDatas[playID] {
+        if let play = Eternal.playDatas[playID] {
             return play.metadata[field]
         } else {
             return nil
@@ -736,7 +693,7 @@ pub contract TopShot: NonFungibleToken {
     // Returns: The name of the Set
     pub fun getSetName(setID: UInt32): String? {
         // Don't force a revert if the setID is invalid
-        return TopShot.setDatas[setID]?.name
+        return Eternal.setDatas[setID]?.name
     }
 
     // getSetSeries returns the series that the specified Set
@@ -747,7 +704,7 @@ pub contract TopShot: NonFungibleToken {
     // Returns: The series that the Set belongs to
     pub fun getSetSeries(setID: UInt32): UInt32? {
         // Don't force a revert if the setID is invalid
-        return TopShot.setDatas[setID]?.series
+        return Eternal.setDatas[setID]?.series
     }
 
     // getSetIDsByName returns the IDs that the specified Set name
@@ -760,7 +717,7 @@ pub contract TopShot: NonFungibleToken {
         var setIDs: [UInt32] = []
 
         // Iterate through all the setDatas and search for the name
-        for setData in TopShot.setDatas.values {
+        for setData in Eternal.setDatas.values {
             if setName == setData.name {
                 // If the name is found, return the ID
                 setIDs.append(setData.setID)
@@ -783,7 +740,7 @@ pub contract TopShot: NonFungibleToken {
     // Returns: An array of Play IDs
     pub fun getPlaysInSet(setID: UInt32): [UInt32]? {
         // Don't force a revert if the setID is invalid
-        return TopShot.sets[setID]?.plays
+        return Eternal.sets[setID]?.plays
     }
 
     // isEditionRetired returns a boolean that indicates if a Set/Play combo
@@ -798,13 +755,13 @@ pub contract TopShot: NonFungibleToken {
     pub fun isEditionRetired(setID: UInt32, playID: UInt32): Bool? {
         // Don't force a revert if the set or play ID is invalid
         // Remove the set from the dictionary to get its field
-        if let setToRead <- TopShot.sets.remove(key: setID) {
+        if let setToRead <- Eternal.sets.remove(key: setID) {
 
             // See if the Play is retired from this Set
             let retired = setToRead.retired[playID]
 
             // Put the Set back in the contract storage
-            TopShot.sets[setID] <-! setToRead
+            Eternal.sets[setID] <-! setToRead
 
             // Return the retired status
             return retired
@@ -825,7 +782,7 @@ pub contract TopShot: NonFungibleToken {
     // Returns: Boolean indicating if the Set is locked or not
     pub fun isSetLocked(setID: UInt32): Bool? {
         // Don't force a revert if the setID is invalid
-        return TopShot.sets[setID]?.locked
+        return Eternal.sets[setID]?.locked
     }
 
     // getNumMomentsInEdition return the number of Moments that have been 
@@ -839,13 +796,13 @@ pub contract TopShot: NonFungibleToken {
     pub fun getNumMomentsInEdition(setID: UInt32, playID: UInt32): UInt32? {
         // Don't force a revert if the Set or play ID is invalid
         // Remove the Set from the dictionary to get its field
-        if let setToRead <- TopShot.sets.remove(key: setID) {
+        if let setToRead <- Eternal.sets.remove(key: setID) {
 
             // Read the numMintedPerPlay
             let amount = setToRead.numberMintedPerPlay[playID]
 
             // Put the Set back into the Sets dictionary
-            TopShot.sets[setID] <-! setToRead
+            Eternal.sets[setID] <-! setToRead
 
             return amount
         } else {
@@ -855,7 +812,7 @@ pub contract TopShot: NonFungibleToken {
     }
 
     // -----------------------------------------------------------------------
-    // TopShot initialization function
+    // Eternal initialization function
     // -----------------------------------------------------------------------
     //
     init() {
@@ -875,7 +832,7 @@ pub contract TopShot: NonFungibleToken {
         self.account.link<&{MomentCollectionPublic}>(/public/MomentCollection, target: /storage/MomentCollection)
 
         // Put the Minter in storage
-        self.account.save<@Admin>(<- create Admin(), to: /storage/TopShotAdmin)
+        self.account.save<@Admin>(<- create Admin(), to: /storage/EternalAdmin)
 
         emit ContractInitialized()
     }

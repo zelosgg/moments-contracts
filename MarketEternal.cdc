@@ -1,51 +1,21 @@
 /*
-
-    MarketTopShot.cdc
-
-    Description: Contract definitions for users to sell their moments
-
-    Authors: Joshua Hannan joshua.hannan@dapperlabs.com
-             Dieter Shirley dete@axiomzen.com
-
-    Marketplace is where users can create a sale collection that they
-    store in their account storage. In the sale collection, 
-    they can put their NFTs up for sale with a price and publish a 
-    reference so that others can see the sale.
-
-    If another user sees an NFT that they want to buy,
-    they can send fungible tokens that equal or exceed the buy price
-    to buy the NFT.  The NFT is transferred to them when
-    they make the purchase.
-
-    Each user who wants to sell tokens will have a sale collection 
-    instance in their account that holds the tokens that they are putting up for sale
-
-    They can give a reference to this collection to a central contract
-    so that it can list the sales in a central place
-
-    When a user creates a sale, they will supply three arguments:
-    - A FungibleToken.Receiver capability as the place where the payment for the token goes.
-    - A FungibleToken.Receiver capability specifying a beneficiary, where a cut of the purchase gets sent. 
-    - A cut percentage, specifying how much the beneficiary will recieve.
-    
-    The cut percentage can be set to zero if the user desires and they 
-    will receive the entirety of the purchase. TopShot will initialize sales 
-    for users with the TopShot admin vault as the vault where cuts get 
-    deposited to.
+    This contract is mostly copied from the MarketTopShot contract but with
+    modifications to integrate with Eternal's influencer system, such that
+    influencers receive cuts from transactions that take place on the marketplace.
 */
 
 import FungibleToken from 0xFUNGIBLETOKENADDRESS
 import NonFungibleToken from 0xNFTADDRESS
-import TopShot from 0xTOPSHOTADDRESS
+import Eternal from 0xETERNALADDRESS
 import InfluencerRegistry from 0xREGISTRYADDRESS
 
 pub contract Market {
 
     // -----------------------------------------------------------------------
-    // TopShot Market contract Event definitions
+    // Eternal Market contract Event definitions
     // -----------------------------------------------------------------------
 
-    // emitted when a TopShot moment is listed for sale
+    // emitted when a Eternal moment is listed for sale
     pub event MomentListed(id: UInt64, price: UFix64, seller: Address?)
     // emitted when the price of a listed moment has changed
     pub event MomentPriceChanged(id: UInt64, newPrice: UFix64, seller: Address?)
@@ -56,7 +26,7 @@ pub contract Market {
     // emitted when the cut percentage of the sale has been changed by the owner
     pub event CutPercentageChanged(newPercent: UFix64, seller: Address?)
     // emitted when an influencer has received a cut
-    pub event InfluencerCutReceived(name: String, ftName: String, cut: UFix64)
+    pub event InfluencerCutReceived(name: String, ftType: Type, cut: UFix64)
 
     // SalePublic 
     //
@@ -64,14 +34,14 @@ pub contract Market {
     // to allow others to access their sale
     pub resource interface SalePublic {
         pub var cutPercentage: UFix64
-        pub fun purchase(tokenID: UInt64, buyTokens: @FungibleToken.Vault): @TopShot.NFT {
+        pub fun purchase(tokenID: UInt64, buyTokens: @FungibleToken.Vault): @Eternal.NFT {
             post {
                 result.id == tokenID: "The ID of the withdrawn token must be the same as the requested ID"
             }
         }
         pub fun getPrice(tokenID: UInt64): UFix64?
         pub fun getIDs(): [UInt64]
-        pub fun borrowMoment(id: UInt64): &TopShot.NFT? {
+        pub fun borrowMoment(id: UInt64): &Eternal.NFT? {
             // If the result isn't nil, the id of the returned reference
             // should be the same as the argument to the function
             post {
@@ -85,7 +55,7 @@ pub contract Market {
     //
     // This is the main resource that token sellers will store in their account
     // to manage the NFTs that they are selling. The SaleCollection
-    // holds a TopShot Collection resource to store the moments that are for sale.
+    // holds a Eternal Collection resource to store the moments that are for sale.
     // The SaleCollection also keeps track of the price of each token.
     // 
     // When a token is purchased, a cut is taken from the tokens
@@ -96,7 +66,7 @@ pub contract Market {
     pub resource SaleCollection: SalePublic {
 
         // A collection of the moments that the user has for sale
-        access(self) var forSale: @TopShot.Collection
+        access(self) var forSale: @Eternal.Collection
 
         // Dictionary of the low low prices for each NFT by ID
         access(self) var prices: {UInt64: UFix64}
@@ -114,11 +84,11 @@ pub contract Market {
         // For example, if the percentage is 15%, cutPercentage = 0.15
         pub var cutPercentage: UFix64
 
-        // The name of the fungible token that should be used to transact with this
+        // The fungible token that should be used to transact with this
         // sale collection.
-        pub var ftName: String
+        pub var ftType: Type
 
-        init (ftName: String, ownerCapability: Capability, beneficiaryCapability: Capability, cutPercentage: UFix64) {
+        init (ftType: Type, ownerCapability: Capability, beneficiaryCapability: Capability, cutPercentage: UFix64) {
             pre {
                 // Check that both capabilities are for fungible token Vault receivers
                 ownerCapability.borrow<&{FungibleToken.Receiver}>() != nil: 
@@ -128,13 +98,13 @@ pub contract Market {
             }
             
             // create an empty collection to store the moments that are for sale
-            self.forSale <- TopShot.createEmptyCollection() as! @TopShot.Collection
+            self.forSale <- Eternal.createEmptyCollection() as! @Eternal.Collection
             self.ownerCapability = ownerCapability
             self.beneficiaryCapability = beneficiaryCapability
             // prices are initially empty because there are no moments for sale
             self.prices = {}
             self.cutPercentage = cutPercentage
-            self.ftName = ftName
+            self.ftType = ftType
         }
 
         // listForSale lists an NFT for sale in this sale collection
@@ -142,7 +112,7 @@ pub contract Market {
         //
         // Parameters: token: The NFT to be put up for sale
         //             price: The price of the NFT
-        pub fun listForSale(token: @TopShot.NFT, price: UFix64) {
+        pub fun listForSale(token: @Eternal.NFT, price: UFix64) {
 
             // get the ID of the token
             let id = token.id
@@ -161,12 +131,12 @@ pub contract Market {
         //
         // Parameters: tokenID: the ID of the token to withdraw from the sale
         //
-        // Returns: @TopShot.NFT: The nft that was withdrawn from the sale
-        pub fun withdraw(tokenID: UInt64): @TopShot.NFT {
+        // Returns: @Eternal.NFT: The nft that was withdrawn from the sale
+        pub fun withdraw(tokenID: UInt64): @Eternal.NFT {
 
             // Remove and return the token.
             // Will revert if the token doesn't exist
-            let token <- self.forSale.withdraw(withdrawID: tokenID) as! @TopShot.NFT
+            let token <- self.forSale.withdraw(withdrawID: tokenID) as! @Eternal.NFT
 
             // Remove the price from the prices dictionary
             self.prices.remove(key: tokenID)
@@ -187,11 +157,12 @@ pub contract Market {
         // Parameters: tokenID: the ID of the NFT to purchase
         //             butTokens: the fungible tokens that are used to buy the NFT
         //
-        // Returns: @TopShot.NFT: the purchased NFT
-        pub fun purchase(tokenID: UInt64, buyTokens: @FungibleToken.Vault): @TopShot.NFT {
+        // Returns: @Eternal.NFT: the purchased NFT
+        pub fun purchase(tokenID: UInt64, buyTokens: @FungibleToken.Vault): @Eternal.NFT {
             pre {
                 self.forSale.ownedNFTs[tokenID] != nil && self.prices[tokenID] != nil:
                     "No token matching this ID for sale!"           
+                buyTokens.isInstance(self.ftType): "payment vault is not requested fungible token"
                 buyTokens.balance == (self.prices[tokenID] ?? UFix64(0)):
                     "Not enough tokens to buy the NFT!"
             }
@@ -206,7 +177,7 @@ pub contract Market {
             let nft <- self.withdraw(tokenID: tokenID)
 
             // Find the influencer name
-            let influencerName = self.getInfluencerNameFromMoment(moment: &nft as &TopShot.NFT)
+            let influencerName = self.getInfluencerNameFromMoment(moment: &nft as &Eternal.NFT)
 
             // Withdraw the influener cut
             let influencerCutPercentage = InfluencerRegistry.getCutPercentage(name: influencerName)
@@ -214,12 +185,12 @@ pub contract Market {
             let influencerCut <- buyTokens.withdraw(amount: influencerCutAmount)
 
             // Deposit the influencer cut
-            let influencerCap = InfluencerRegistry.getCapability(name: influencerName, ftName: self.ftName)
+            let influencerCap = InfluencerRegistry.getCapability(name: influencerName, ftType: self.ftType)
                 ?? panic("Cannot find the influencer in the registry")
             let influencerReceiverRef = influencerCap.borrow<&{FungibleToken.Receiver}>()
                 ?? panic("Cannot find a token receiver for the influencer")
             influencerReceiverRef.deposit(from: <-influencerCut)
-            emit InfluencerCutReceived(name: influencerName, ftName: self.ftName, cut: influencerCutAmount)
+            emit InfluencerCutReceived(name: influencerName, ftType: self.ftType, cut: influencerCutAmount)
 
             // Withdraw the beneficiary cut
             let beneficiaryCut <- buyTokens.withdraw(amount: price*self.cutPercentage)
@@ -236,9 +207,9 @@ pub contract Market {
             return <-nft
         }
 
-        access(self) fun getInfluencerNameFromMoment(moment: &TopShot.NFT): String {
+        access(self) fun getInfluencerNameFromMoment(moment: &Eternal.NFT): String {
             let playID = moment.data.playID
-            let metadata = TopShot.getPlayMetaData(playID: playID)
+            let metadata = Eternal.getPlayMetaData(playID: playID)
             return metadata!["Influencer"]!
         }
 
@@ -308,10 +279,10 @@ pub contract Market {
         //
         // Parameters: id: The ID of the moment to borrow a reference to
         //
-        // Returns: &TopShot.NFT? Optional reference to a moment for sale 
+        // Returns: &Eternal.NFT? Optional reference to a moment for sale 
         //                        so that the caller can read its data
         //
-        pub fun borrowMoment(id: UInt64): &TopShot.NFT? {
+        pub fun borrowMoment(id: UInt64): &Eternal.NFT? {
             let ref = self.forSale.borrowMoment(id: id)
             return ref
         }
@@ -324,8 +295,8 @@ pub contract Market {
     }
 
     // createCollection returns a new collection resource to the caller
-    pub fun createSaleCollection(ftName: String, ownerCapability: Capability, beneficiaryCapability: Capability, cutPercentage: UFix64): @SaleCollection {
-        return <- create SaleCollection(ftName: ftName, ownerCapability: ownerCapability, beneficiaryCapability: beneficiaryCapability, cutPercentage: cutPercentage)
+    pub fun createSaleCollection(ftType: Type, ownerCapability: Capability, beneficiaryCapability: Capability, cutPercentage: UFix64): @SaleCollection {
+        return <- create SaleCollection(ftType: ftType, ownerCapability: ownerCapability, beneficiaryCapability: beneficiaryCapability, cutPercentage: cutPercentage)
     }
 }
  
