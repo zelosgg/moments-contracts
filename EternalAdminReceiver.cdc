@@ -16,12 +16,12 @@ pub contract EternalAdminReceiver {
     
     init() {
         // Save a copy of the sharded Moment Collection to the account storage
-        if self.account.borrow<&EternalShardedCollection.ShardedCollection>(from: /storage/ShardedMomentCollection) == nil {
+        if self.account.borrow<&EternalShardedCollection.ShardedCollection>(from: /storage/EternalShardedMomentCollection) == nil {
             let collection <- EternalShardedCollection.createEmptyCollection(numBuckets: 32)
             // Put a new Collection in storage
-            self.account.save(<-collection, to: /storage/ShardedMomentCollection)
+            self.account.save(<-collection, to: /storage/EternalShardedMomentCollection)
 
-            self.account.link<&{Eternal.MomentCollectionPublic}>(/public/MomentCollection, target: /storage/ShardedMomentCollection)
+            self.account.link<&{Eternal.MomentCollectionPublic}>(/public/EternalMomentCollection, target: /storage/EternalShardedMomentCollection)
         }
     }
 }

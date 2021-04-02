@@ -104,7 +104,7 @@ pub contract InfluencerRegistry {
 
         self.defaultCutPercentage = 0.04
 
-        self.account.save<@Admin>(<- create Admin(), to: /storage/InfluencerRegistryAdmin)
+        self.account.save<@Admin>(<- create Admin(), to: /storage/EternalInfluencerRegistryAdmin)
     }
 
 }

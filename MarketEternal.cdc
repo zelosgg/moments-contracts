@@ -91,12 +91,12 @@ pub contract Market {
         init (ftType: Type, ownerCapability: Capability, beneficiaryCapability: Capability, cutPercentage: UFix64) {
             pre {
                 // Check that both capabilities are for fungible token Vault receivers
-                ownerCapability.borrow<&{FungibleToken.Receiver}>() != nil: 
+                ownerCapability.borrow<&{FungibleToken.Receiver}>()!.isInstance(ftType): 
                     "Owner's Receiver Capability is invalid!"
-                beneficiaryCapability.borrow<&{FungibleToken.Receiver}>() != nil: 
+                beneficiaryCapability.borrow<&{FungibleToken.Receiver}>()!.isInstance(ftType): 
                     "Beneficiary's Receiver Capability is invalid!" 
             }
-            
+
             // create an empty collection to store the moments that are for sale
             self.forSale <- Eternal.createEmptyCollection() as! @Eternal.Collection
             self.ownerCapability = ownerCapability

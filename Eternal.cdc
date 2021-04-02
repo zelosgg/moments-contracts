@@ -826,10 +826,10 @@ pub contract Eternal: NonFungibleToken {
         self.totalSupply = 0
 
         // Put a new Collection in storage
-        self.account.save<@Collection>(<- create Collection(), to: /storage/MomentCollection)
+        self.account.save<@Collection>(<- create Collection(), to: /storage/EternalMomentCollection)
 
         // Create a public capability for the Collection
-        self.account.link<&{MomentCollectionPublic}>(/public/MomentCollection, target: /storage/MomentCollection)
+        self.account.link<&{MomentCollectionPublic}>(/public/EternalMomentCollection, target: /storage/EternalMomentCollection)
 
         // Put the Minter in storage
         self.account.save<@Admin>(<- create Admin(), to: /storage/EternalAdmin)
