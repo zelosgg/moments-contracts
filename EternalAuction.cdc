@@ -4,7 +4,7 @@ import NonFungibleToken from 0xNFTADDRESS
 pub contract EternalAuction {
 
     pub event AuctionCreated(auctionID: UInt64, tokenType: Type, minBidAmount: UFix64, minBidIncrement: UFix64, endTime: UFix64)
-    pub event AuctionEnded(auctionID: UInt64)
+    pub event AuctionEnded(auctionID: UInt64, winningBidIDs: [UInt64])
 
     pub event BidCreated(auctionID: UInt64, bidID: UInt64, amount: UFix64)
     pub event BidOutbidded(auctionID: UInt64, bidID: UInt64)
@@ -225,12 +225,14 @@ pub contract EternalAuction {
 
             // Move the sold items into the winning bids
             var i = 0
+            let bidIDs: [UInt64] = []
             while i < self.bids.length {
                 self.bids[i].setItem(item: <- self.items.remove(at: 0))
+                bidIDs.append(self.bids[i].bidID)
                 i = i + 1
             }
 
-            emit AuctionEnded(auctionID: self.auctionID)
+            emit AuctionEnded(auctionID: self.auctionID, winningBidIDs: bidIDs)
         }
 
         pub fun withdrawUnsoldItems(): @[NonFungibleToken.NFT] {
@@ -260,6 +262,97 @@ pub contract EternalAuction {
                 i = i + 1
             }
             return <-tokens
+        }
+
+        pub fun getAuctionStatus(): AuctionStatus {
+            let itemStatuses: [ItemStatus] = []
+            let bidStatuses: [BidStatus] = []
+
+            var i = 0
+            while i < self.items.length {
+                itemStatuses.append(ItemStatus(
+                    id: self.items[i].id,
+                    type: self.items[i].getType()
+                ))
+                i = i + 1
+            }
+
+            i = 0
+            while i < self.bids.length {
+                bidStatuses.append(BidStatus(
+                    bidID: self.bids[i].bidID,
+                    amount: self.bids[i].amount()
+                ))
+                i = i + 1
+            }
+
+            return AuctionStatus(
+                auctionID: self.auctionID,
+                tokenType: self.tokenType,
+                minBidAmount: self.minBidAmount,
+                minBidIncrement: self.minBidIncrement,
+                endTime: self.endTime,
+                ended: self.ended,
+                itemStatuses: itemStatuses,
+                bidStatuses: bidStatuses
+            )
+        }
+    }
+
+    pub struct AuctionStatus {
+        pub let auctionID: UInt64
+        pub let tokenType: Type
+        pub let minBidAmount: UFix64
+        pub let minBidIncrement: UFix64
+        pub let endTime: UFix64
+        pub let ended: Bool
+        pub let itemStatuses: [ItemStatus]
+        pub let bidStatuses: [BidStatus]
+
+        init(
+            auctionID: UInt64,
+            tokenType: Type,
+            minBidAmount: UFix64,
+            minBidIncrement: UFix64,
+            endTime: UFix64,
+            ended: Bool,
+            itemStatuses: [ItemStatus],
+            bidStatuses: [BidStatus]
+        ) {
+            self.auctionID = auctionID
+            self.tokenType = tokenType
+            self.minBidAmount = minBidAmount
+            self.minBidIncrement = minBidIncrement
+            self.endTime = endTime
+            self.ended = ended
+            self.itemStatuses = itemStatuses
+            self.bidStatuses = bidStatuses
+        }
+    }
+
+    pub struct BidStatus {
+        pub let bidID: UInt64
+        pub let amount: UFix64
+
+        init(
+            bidID: UInt64,
+            amount: UFix64
+        ) {
+            self.bidID = bidID
+            self.amount = amount
+        }
+    }
+
+    pub struct ItemStatus {
+        pub let id: UInt64
+        pub let type: Type
+
+        init(
+            id: UInt64,
+            type: Type 
+        ) {
+            self.id = id 
+            self.type = type
         }
     }
 
